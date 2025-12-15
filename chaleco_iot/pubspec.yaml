@@ -1,0 +1,25 @@
+name: chaleco_iot
+description: Una app Flutter para el chaleco IoT militar
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.10.0 <4.0.0'
+
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.1.0
+  awesome_notifications: ^0.10.1
+  fl_chart: ^0.60.0
+  provider: ^6.0.5
+  lottie: ^2.7.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
+ 
