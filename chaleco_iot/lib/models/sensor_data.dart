@@ -6,6 +6,7 @@ class SensorData {
   final double mag;
   final double batV;
   final int batteryPct;
+  final double? pulse; // FUTURO
 
   SensorData({
     this.temp = 0.0,
@@ -15,5 +16,6 @@ class SensorData {
     this.mag = 0.0,
     this.batV = 0.0,
     this.batteryPct = 0,
+    this.pulse = 0.0,
   });
 }
