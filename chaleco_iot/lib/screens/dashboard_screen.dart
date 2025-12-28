@@ -28,12 +28,10 @@ class _DashboardScreenState extends State<DashboardScreen>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-
     _fade = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
-
     _controller.forward();
-    fetchData();
 
+    fetchData();
     timer = Timer.periodic(const Duration(seconds: 15), (_) => fetchData());
   }
 
@@ -42,7 +40,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       final result = await ApiService.fetchLatestData();
       setState(() => data = result);
     } catch (e) {
-      debugPrint("Error ThingSpeak: $e");
+      debugPrint("ThingSpeak error: $e");
     }
   }
 
@@ -79,14 +77,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                         ),
                       ),
                       const SizedBox(height: 6),
-                      const Text(
-                        "Datos en tiempo real",
-                        style: TextStyle(color: Colors.white70),
+                      Text(
+                        "RSSI ${data!.rssi} dBm | Dist ${data!.distance.toStringAsFixed(0)} m",
+                        style: const TextStyle(color: Colors.white70),
                       ),
-
                       const SizedBox(height: 30),
 
-                      // ===== TEMPERATURA =====
+                      // TEMPERATURA
                       _card(
                         icon: Icons.monitor_heart,
                         title: "Temperatura Corporal",
@@ -104,10 +101,10 @@ class _DashboardScreenState extends State<DashboardScreen>
 
                       const SizedBox(height: 20),
 
-                      // ===== MOVIMIENTO =====
+                      // MOVIMIENTO
                       _card(
                         icon: Icons.directions_run,
-                        title: "Movimiento",
+                        title: "Magnitud de Movimiento",
                         value: data!.mag.toStringAsFixed(2),
                         color: Colors.orangeAccent,
                         onTap: () {
@@ -119,48 +116,24 @@ class _DashboardScreenState extends State<DashboardScreen>
                           );
                         },
                       ),
-                      const SizedBox(height: 20),
-
-                      // ===== PULSO CARD (FUTURO) =====
-                      _card(
-                        icon: Icons.favorite,
-                        title: "Pulso Cardíaco",
-                        value: data!.pulse == null
-                            ? "SIN SEÑAL"
-                            : "${data!.pulse!.toStringAsFixed(0)} BPM",
-                        color: Colors.pinkAccent,
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Pulsímetro aún no conectado"),
-                            ),
-                          );
-                        },
-                      ),
 
                       const SizedBox(height: 20),
 
-                      // ===== BATERÍA =====
+                      // ESTADO / ACTIVIDAD
                       _card(
-                        icon: Icons.battery_full,
-                        title: "Nivel de Batería",
-                        value: "${data!.batteryPct.toStringAsFixed(0)} %",
-                        color: data!.batteryPct > 50
-                            ? Colors.greenAccent
-                            : data!.batteryPct > 20
-                            ? Colors.orangeAccent
-                            : Colors.redAccent,
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                data!.batteryPct > 20
-                                    ? "Batería en estado operativo"
-                                    : "⚠️ Batería baja",
-                              ),
-                            ),
-                          );
-                        },
+                        icon: Icons.security,
+                        title: "Estado de Actividad",
+                        value: data!.activity == 0
+                            ? "REPOSO"
+                            : data!.activity == 1
+                            ? "NORMAL"
+                            : data!.activity == 2
+                            ? "ACTIVO"
+                            : "ALERTA",
+                        color: data!.activity == 3
+                            ? Colors.redAccent
+                            : Colors.greenAccent,
+                        onTap: () {},
                       ),
                     ],
                   ),
@@ -181,7 +154,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
-        height: 140,
+        height: 130,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: const Color(0xFF151A21),
@@ -198,9 +171,9 @@ class _DashboardScreenState extends State<DashboardScreen>
         child: Row(
           children: [
             CircleAvatar(
-              radius: 32,
+              radius: 30,
               backgroundColor: color.withOpacity(0.2),
-              child: Icon(icon, size: 36, color: color),
+              child: Icon(icon, size: 34, color: color),
             ),
             const SizedBox(width: 20),
             Expanded(
@@ -226,11 +199,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ),
                 ],
               ),
-            ),
-            const Icon(
-              Icons.arrow_forward_ios,
-              color: Colors.white54,
-              size: 18,
             ),
           ],
         ),
