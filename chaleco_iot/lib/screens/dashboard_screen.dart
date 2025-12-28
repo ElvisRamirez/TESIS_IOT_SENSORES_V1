@@ -4,6 +4,7 @@ import '../models/sensor_data.dart';
 import '../services/api_service.dart';
 import 'temperature_screen.dart';
 import 'motion_screen.dart';
+import 'pulse_screen.dart'; // Agrega esta importación
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -28,10 +29,12 @@ class _DashboardScreenState extends State<DashboardScreen>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
-    _controller.forward();
 
+    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
+
+    _controller.forward();
     fetchData();
+
     timer = Timer.periodic(const Duration(seconds: 15), (_) => fetchData());
   }
 
@@ -40,7 +43,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       final result = await ApiService.fetchLatestData();
       setState(() => data = result);
     } catch (e) {
-      debugPrint("ThingSpeak error: $e");
+      debugPrint("Error ThingSpeak: $e");
     }
   }
 
@@ -77,13 +80,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Text(
-                        "RSSI ${data!.rssi} dBm | Dist ${data!.distance.toStringAsFixed(0)} m",
-                        style: const TextStyle(color: Colors.white70),
+                      const Text(
+                        "Datos en tiempo real",
+                        style: TextStyle(color: Colors.white70),
                       ),
                       const SizedBox(height: 30),
 
-                      // TEMPERATURA
+                      // ===== TEMPERATURA =====
                       _card(
                         icon: Icons.monitor_heart,
                         title: "Temperatura Corporal",
@@ -101,7 +104,25 @@ class _DashboardScreenState extends State<DashboardScreen>
 
                       const SizedBox(height: 20),
 
-                      // MOVIMIENTO
+                      // ===== PULSO =====
+                      _card(
+                        icon: Icons.favorite,
+                        title: "Pulso Cardíaco",
+                        value: "${data!.pulse.toStringAsFixed(0)} BPM",
+                        color: Colors.pinkAccent,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const PulseScreen(),
+                            ),
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // ===== MOVIMIENTO =====
                       _card(
                         icon: Icons.directions_run,
                         title: "Magnitud de Movimiento",
@@ -119,20 +140,13 @@ class _DashboardScreenState extends State<DashboardScreen>
 
                       const SizedBox(height: 20),
 
-                      // ESTADO / ACTIVIDAD
+                      // ===== LORA LINK =====
                       _card(
-                        icon: Icons.security,
-                        title: "Estado de Actividad",
-                        value: data!.activity == 0
-                            ? "REPOSO"
-                            : data!.activity == 1
-                            ? "NORMAL"
-                            : data!.activity == 2
-                            ? "ACTIVO"
-                            : "ALERTA",
-                        color: data!.activity == 3
-                            ? Colors.redAccent
-                            : Colors.greenAccent,
+                        icon: Icons.wifi_tethering,
+                        title: "Enlace LoRa",
+                        value:
+                            "RSSI: ${data!.rssi} dBm\nDist: ${data!.distance.toStringAsFixed(1)} m",
+                        color: Colors.greenAccent,
                         onTap: () {},
                       ),
                     ],
@@ -152,9 +166,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        height: 130,
+      child: Container(
+        height: 140,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: const Color(0xFF151A21),
@@ -171,9 +184,9 @@ class _DashboardScreenState extends State<DashboardScreen>
         child: Row(
           children: [
             CircleAvatar(
-              radius: 30,
+              radius: 32,
               backgroundColor: color.withOpacity(0.2),
-              child: Icon(icon, size: 34, color: color),
+              child: Icon(icon, size: 36, color: color),
             ),
             const SizedBox(width: 20),
             Expanded(
@@ -188,12 +201,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Text(
                     value,
                     style: TextStyle(
                       color: color,
-                      fontSize: 22,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
                   ),

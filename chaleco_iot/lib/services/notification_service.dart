@@ -17,6 +17,9 @@ class NotificationService {
         ),
       ],
     );
+
+    // Solicitar permisos
+    await AwesomeNotifications().requestPermissionToSendNotifications();
   }
 
   // Mostrar notificación
