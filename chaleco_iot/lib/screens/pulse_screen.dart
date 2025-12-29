@@ -45,75 +45,152 @@ class _PulseScreenState extends State<PulseScreen> {
     super.dispose();
   }
 
-  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0E11),
+      backgroundColor: const Color(0xFF121212), // Fondo oscuro militar
       appBar: AppBar(
-        title: const Text('Pulso Cardíaco'),
-        backgroundColor: Colors.pinkAccent,
+        title: const Text('MONITOREO CARDÍACO'),
+        backgroundColor: const Color(0xFF1E1E1E),
+        foregroundColor: Colors.white,
+        elevation: 4,
+        centerTitle: true,
+        titleTextStyle: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
+          letterSpacing: 1.2,
+        ),
       ),
       body: data == null
           ? const Center(
-              child: CircularProgressIndicator(color: Colors.pinkAccent),
+              child: CircularProgressIndicator(
+                color: Colors.redAccent,
+                strokeWidth: 5,
+              ),
             )
           : Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  // ICONO CORAZÓN
-                  Icon(
-                    Icons.favorite,
-                    size: 90,
-                    color: _pulseColor(data!.pulse),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  Text(
-                    "${_convertToBPM(data!.pulse!)} BPM",
-                    style: TextStyle(
-                      fontSize: 46,
-                      fontWeight: FontWeight.bold,
+                  // ICONO CORAZÓN TÁCTICO
+                  Container(
+                    padding: const EdgeInsets.all(30),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _pulseColor(data!.pulse).withOpacity(0.2),
+                      border: Border.all(
+                        color: _pulseColor(data!.pulse),
+                        width: 3,
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.favorite,
+                      size: 100,
                       color: _pulseColor(data!.pulse),
                     ),
                   ),
 
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 20),
 
+                  // BPM GRANDE Y PROFESIONAL
                   Text(
-                    _pulseStatus(data!.pulse),
-                    style: const TextStyle(color: Colors.white70, fontSize: 16),
+                    "${_convertToBPM(data!.pulse!)}",
+                    style: const TextStyle(
+                      fontSize: 72,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 2,
+                    ),
                   ),
 
-                  const SizedBox(height: 30),
+                  const Text(
+                    "BPM",
+                    style: TextStyle(
+                      fontSize: 24,
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
 
-                  const Align(
-                    alignment: Alignment.centerLeft,
+                  const SizedBox(height: 12),
+
+                  // ESTADO CARDÍACO
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _pulseColor(data!.pulse).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: _pulseColor(data!.pulse),
+                        width: 2,
+                      ),
+                    ),
                     child: Text(
-                      "Últimas lecturas",
+                      _pulseStatus(data!.pulse),
                       style: TextStyle(
-                        color: Colors.pinkAccent,
+                        color: _pulseColor(data!.pulse),
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
 
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 40),
 
+                  // TÍTULO ÚLTIMAS LECTURAS
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      "HISTORIAL RECIENTE",
+                      style: TextStyle(
+                        color: Colors.redAccent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ),
+
+                  const Divider(
+                    color: Colors.white24,
+                    thickness: 1,
+                    height: 20,
+                  ),
+
+                  // LISTA DE ÚLTIMAS LECTURAS
                   Expanded(
                     child: ListView.builder(
                       itemCount: lastPulse.length,
                       itemBuilder: (_, i) {
-                        return ListTile(
-                          leading: const Icon(
-                            Icons.favorite,
-                            color: Colors.pinkAccent,
+                        int bpm = _convertToBPM(lastPulse[i]);
+                        return Card(
+                          color: const Color(0xFF1E1E1E),
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.white10),
                           ),
-                          title: Text(
-                            "${_convertToBPM(lastPulse[i])} BPM",
-                            style: const TextStyle(color: Colors.white),
+                          child: ListTile(
+                            leading: Icon(
+                              Icons.favorite,
+                              color: _pulseColor(lastPulse[i]),
+                              size: 30,
+                            ),
+                            title: Text(
+                              "$bpm BPM",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                            trailing: Text(
+                              "#${i + 1}",
+                              style: const TextStyle(color: Colors.white54),
+                            ),
                           ),
                         );
                       },
@@ -126,8 +203,7 @@ class _PulseScreenState extends State<PulseScreen> {
   }
 
   // ================= UTILIDADES =================
-  Color _pulseColor(int? p) {
-    if (p == null) return Colors.grey;
+  Color _pulseColor(int p) {
     int bpm = _convertToBPM(p);
     if (bpm < 50) return Colors.blueAccent;
     if (bpm < 100) return Colors.greenAccent;
@@ -135,21 +211,16 @@ class _PulseScreenState extends State<PulseScreen> {
     return Colors.redAccent;
   }
 
-  String _pulseStatus(int? p) {
-    if (p == null) return "Sensor no conectado";
+  String _pulseStatus(int p) {
     int bpm = _convertToBPM(p);
-    if (bpm < 50) return "Pulso bajo";
-    if (bpm < 100) return "Normal";
-    if (bpm < 120) return "Elevado";
-    return "ALERTA CARDÍACA";
+    if (bpm < 50) return "BRADICARDIA";
+    if (bpm < 100) return "NORMAL";
+    if (bpm < 120) return "TAQUICARDIA LEVE";
+    return "TAQUICARDIA - ALERTA";
   }
 
-  // Conversión a BPM - Calibrada según datos (ajusta con más puntos para precisión)
   int _convertToBPM(int raw) {
-    // Provisional: basado en raw=1992 → BPM=60 (tranquilo)
-    // Para calibración real, usa interpolación lineal con más datos
-    // Ejemplo: si tienes raw1=1917 (BPM1=60), raw2=X (BPM2=Y), calcula pendiente
-    double factor = 1992 / 60.0; // ~31.95
-    return (raw / factor).round();
+    // Ajusta esta fórmula según calibración real del sensor en pecho
+    return (raw / 32).toInt();
   }
 }

@@ -4,7 +4,8 @@ import '../models/sensor_data.dart';
 import '../services/api_service.dart';
 import 'temperature_screen.dart';
 import 'motion_screen.dart';
-import 'pulse_screen.dart'; // Agrega esta importación
+import 'pulse_screen.dart';
+import 'signal_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -21,6 +22,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   late AnimationController _controller;
   late Animation<double> _fade;
 
+  int _convertToBPM(int raw) => (raw / 32).toInt();
+  bool _detectMovement(double mag) => mag > 0.14;
+
   @override
   void initState() {
     super.initState();
@@ -31,10 +35,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
 
     _fade = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
-
     _controller.forward();
-    fetchData();
 
+    fetchData();
     timer = Timer.periodic(const Duration(seconds: 15), (_) => fetchData());
   }
 
@@ -43,7 +46,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       final result = await ApiService.fetchLatestData();
       setState(() => data = result);
     } catch (e) {
-      debugPrint("Error ThingSpeak: $e");
+      debugPrint("Dashboard error: $e");
     }
   }
 
@@ -62,7 +65,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         child: FadeTransition(
           opacity: _fade,
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
             child: data == null
                 ? const Center(
                     child: CircularProgressIndicator(color: Colors.greenAccent),
@@ -70,8 +73,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // ===== HEADER =====
                       const Text(
-                        "TACTICAL IOT VEST",
+                        "CENTRO DE CONTROL",
                         style: TextStyle(
                           color: Colors.greenAccent,
                           fontSize: 22,
@@ -81,10 +85,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                       const SizedBox(height: 6),
                       const Text(
-                        "Datos en tiempo real",
+                        "Estados y enlace LoRa",
                         style: TextStyle(color: Colors.white70),
                       ),
-                      const SizedBox(height: 30),
+
+                      const SizedBox(height: 28),
 
                       // ===== TEMPERATURA =====
                       _card(
@@ -102,31 +107,31 @@ class _DashboardScreenState extends State<DashboardScreen>
                         },
                       ),
 
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 18),
 
                       // ===== PULSO =====
                       _card(
                         icon: Icons.favorite,
                         title: "Pulso Cardíaco",
-                        value: "${data!.pulse.toStringAsFixed(0)} BPM",
+                        value: "${_convertToBPM(data!.pulse).toString()} BPM",
                         color: Colors.pinkAccent,
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(
-                              builder: (_) => const PulseScreen(),
-                            ),
+                            MaterialPageRoute(builder: (_) => PulseScreen()),
                           );
                         },
                       ),
 
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 18),
 
                       // ===== MOVIMIENTO =====
                       _card(
                         icon: Icons.directions_run,
-                        title: "Magnitud de Movimiento",
-                        value: data!.mag.toStringAsFixed(2),
+                        title: "Estado de Movimiento",
+                        value: _detectMovement(data!.mag)
+                            ? "UNIDAD EN MOVIMIENTO"
+                            : "UNIDAD ESTÁTICA",
                         color: Colors.orangeAccent,
                         onTap: () {
                           Navigator.push(
@@ -138,16 +143,21 @@ class _DashboardScreenState extends State<DashboardScreen>
                         },
                       ),
 
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 18),
 
-                      // ===== LORA LINK =====
+                      // ===== LORA =====
                       _card(
                         icon: Icons.wifi_tethering,
                         title: "Enlace LoRa",
                         value:
-                            "RSSI: ${data!.rssi} dBm\nDist: ${data!.distance.toStringAsFixed(1)} m",
+                            "RSSI: ${data!.rssi} dBm\nDistancia: ${data!.distance.toStringAsFixed(1)} m",
                         color: Colors.greenAccent,
-                        onTap: () {},
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => SignalScreen()),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -166,17 +176,18 @@ class _DashboardScreenState extends State<DashboardScreen>
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        height: 140,
-        padding: const EdgeInsets.all(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        height: 135,
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: const Color(0xFF151A21),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: color.withOpacity(0.6)),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.3),
-              blurRadius: 15,
+              color: color.withOpacity(0.35),
+              blurRadius: 14,
               offset: const Offset(0, 6),
             ),
           ],
@@ -184,11 +195,11 @@ class _DashboardScreenState extends State<DashboardScreen>
         child: Row(
           children: [
             CircleAvatar(
-              radius: 32,
-              backgroundColor: color.withOpacity(0.2),
-              child: Icon(icon, size: 36, color: color),
+              radius: 30,
+              backgroundColor: color.withOpacity(0.15),
+              child: Icon(icon, size: 34, color: color),
             ),
-            const SizedBox(width: 20),
+            const SizedBox(width: 18),
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -199,19 +210,25 @@ class _DashboardScreenState extends State<DashboardScreen>
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   Text(
                     value,
                     style: TextStyle(
                       color: color,
-                      fontSize: 20,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
               ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: Colors.white54,
+              size: 16,
             ),
           ],
         ),
