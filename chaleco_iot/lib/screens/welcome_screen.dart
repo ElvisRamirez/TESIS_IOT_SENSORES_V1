@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'dashboard_screen.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../screens/dashboard_screen.dart'; // Asegúrate de que este import esté correcto
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -15,6 +17,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   late Animation<double> _fade;
   late Animation<double> _scale;
 
+  bool isSignalReady = false;
+  Timer? _checkTimer;
+
+  // Tus claves de ThingSpeak (reemplaza si cambiaste)
+  final String channelId = '3202744'; // Pon tu Channel ID aquí
+  final String readApiKey = 'D8CS8L02VP13LDA1'; // Pon tu Read API Key aquí
+
   @override
   void initState() {
     super.initState();
@@ -25,19 +34,46 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
 
     _fade = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
-
     _scale = Tween<double>(
       begin: 0.85,
       end: 1.0,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
 
     _controller.forward();
+
+    // Inicia chequeo de señal
+    _checkSignal();
+    _checkTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _checkSignal(),
+    );
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  Future<void> _checkSignal() async {
+    try {
+      final url = Uri.parse(
+        'https://api.thingspeak.com/channels/$channelId/feeds.json?api_key=$readApiKey&results=1',
+      );
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        if (jsonData['feeds'].isNotEmpty) {
+          final lastEntryTime = DateTime.parse(
+            jsonData['feeds'][0]['created_at'],
+          );
+          final now = DateTime.now().toUtc();
+          final diff = now.difference(lastEntryTime);
+          if (diff.inMinutes < 5) {
+            // Datos recientes < 5 min
+            setState(() => isSignalReady = true);
+            _checkTimer?.cancel(); // Deja de chequear
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Error chequeando señal: $e");
+    }
   }
 
   void _enterSystem() {
@@ -45,6 +81,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       context,
       MaterialPageRoute(builder: (_) => const DashboardScreen()),
     );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _checkTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -59,7 +102,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // ===== EMBLEMA =====
+                // ===== EMBLEMA TÁCTICO =====
                 Container(
                   padding: const EdgeInsets.all(22),
                   decoration: BoxDecoration(
@@ -77,7 +120,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
                 // ===== TITULO =====
                 const Text(
-                  "SISTEMA TACTICO IOT",
+                  "SISTEMA TÁCTICO IoT",
                   style: TextStyle(
                     color: Colors.greenAccent,
                     fontSize: 26,
@@ -89,7 +132,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 const SizedBox(height: 10),
 
                 const Text(
-                  "MONITOREO FISIOLOGICO • TRANSMICION LORA",
+                  "MONITOREO FISIOLÓGICO • TRANSMISIÓN LoRa",
                   style: TextStyle(
                     color: Colors.white70,
                     fontSize: 12,
@@ -99,18 +142,29 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
                 const SizedBox(height: 40),
 
-                // ===== ESTADO SISTEMA =====
+                // ===== ESTADO DEL SISTEMA (dinámico) =====
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Icon(Icons.circle, size: 10, color: Colors.greenAccent),
-                    SizedBox(width: 8),
+                  children: [
+                    Icon(
+                      isSignalReady ? Icons.check_circle : Icons.pending,
+                      size: 12,
+                      color: isSignalReady
+                          ? Colors.greenAccent
+                          : Colors.orangeAccent,
+                    ),
+                    const SizedBox(width: 8),
                     Text(
-                      "SISTEMA LISTO",
+                      isSignalReady
+                          ? "SISTEMA LISTO"
+                          : "ESPERANDO SEÑAL LoRa...",
                       style: TextStyle(
-                        color: Colors.greenAccent,
+                        color: isSignalReady
+                            ? Colors.greenAccent
+                            : Colors.orangeAccent,
                         fontSize: 14,
                         letterSpacing: 2,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
@@ -118,23 +172,28 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
                 const SizedBox(height: 50),
 
-                // ===== BOTÓN ENTRADA =====
+                // ===== BOTÓN ENTRADA (solo activo cuando hay señal) =====
                 GestureDetector(
-                  onTap: _enterSystem,
+                  onTap: isSignalReady ? _enterSystem : null,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 60,
                       vertical: 16,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.transparent,
+                      color: isSignalReady
+                          ? Colors.greenAccent
+                          : Colors.grey[800],
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.greenAccent, width: 1.5),
+                      border: Border.all(
+                        color: isSignalReady ? Colors.greenAccent : Colors.grey,
+                        width: 1.5,
+                      ),
                     ),
-                    child: const Text(
-                      "INGRESAR",
+                    child: Text(
+                      isSignalReady ? "INGRESAR" : "ESPERANDO SEÑAL...",
                       style: TextStyle(
-                        color: Colors.greenAccent,
+                        color: isSignalReady ? Colors.black : Colors.white70,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 2,
