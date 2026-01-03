@@ -64,8 +64,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           );
           final now = DateTime.now().toUtc();
           final diff = now.difference(lastEntryTime);
-          if (diff.inMinutes < 5) {
-            // Datos recientes < 5 min
+          if (diff.inMinutes < 2) {
+            // Datos recientes < 2 min
             setState(() => isSignalReady = true);
             _checkTimer?.cancel(); // Deja de chequear
           }
