@@ -25,6 +25,9 @@ class _TemperatureScreenState extends State<TemperatureScreen>
   late AnimationController _animController;
   late Animation<double> _pulseAnim;
 
+  bool _isRegulating = true; // Al inicio: regulación
+  double _stableTemp = 0.0; // Temperatura estabilizada (referencia)
+
   @override
   void initState() {
     super.initState();
@@ -51,12 +54,21 @@ class _TemperatureScreenState extends State<TemperatureScreen>
       final result = await ApiService.fetchLatestData();
       final temp = result.temp;
 
-      if (lastTemp != null && (temp - lastTemp!).abs() >= 1.5) {
-        _sendNotification(temp);
+      // Estabilización: si llega a 31°C o más (tu criterio de normal)
+      if (_isRegulating && temp >= 31.0) {
+        _isRegulating = false;
+        _stableTemp = temp; // Guardamos como referencia normal
+      }
+
+      // Alerta SOLO después de estabilizar (cambio brusco ≥1.5°C)
+      if (!_isRegulating && lastTemp != null) {
+        final diff = (temp - lastTemp!).abs();
+        if (diff >= 1.5) {
+          _sendNotification(temp);
+        }
       }
 
       lastTemp = temp;
-
       lastTemps.insert(0, temp);
       if (lastTemps.length > 5) lastTemps.removeLast();
 
@@ -72,7 +84,9 @@ class _TemperatureScreenState extends State<TemperatureScreen>
         id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
         channelKey: 'chaleco_channel',
         title: '⚠️ ALERTA TÉRMICA',
-        body: 'Cambio brusco detectado: ${temp.toStringAsFixed(1)} °C',
+        body:
+            'Cambio brusco detectado: ${temp.toStringAsFixed(1)} °C\n'
+            'Posible agotamiento de batería o problema fisiológico',
       ),
     );
   }
@@ -86,8 +100,10 @@ class _TemperatureScreenState extends State<TemperatureScreen>
 
   @override
   Widget build(BuildContext context) {
+    final currentTemp = data?.temp ?? _stableTemp;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF121212), // Fondo oscuro táctico
+      backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
         title: const Text('MONITOREO TÉRMICO'),
         backgroundColor: const Color(0xFF1E1E1E),
@@ -100,199 +116,227 @@ class _TemperatureScreenState extends State<TemperatureScreen>
           letterSpacing: 1.5,
         ),
       ),
-      body: data == null
-          ? const Center(
-              child: CircularProgressIndicator(
-                color: Colors.redAccent,
-                strokeWidth: 5,
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            // BLOQUE PRINCIPAL
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E1E1E),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _tempColor(currentTemp).withOpacity(0.6),
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: _tempColor(currentTemp).withOpacity(0.4),
+                    blurRadius: 15,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
-            )
-          : Padding(
-              padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  // ===== BLOQUE PRINCIPAL =====
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E1E1E),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: _tempColor(data!.temp).withOpacity(0.6),
-                        width: 2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: _tempColor(data!.temp).withOpacity(0.4),
-                          blurRadius: 15,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
+                  ScaleTransition(
+                    scale: _pulseAnim,
+                    child: Icon(
+                      Icons.thermostat,
+                      size: 100,
+                      color: _tempColor(currentTemp),
                     ),
-                    child: Column(
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Mensaje de regulación o temperatura real
+                  if (_isRegulating)
+                    const Column(
                       children: [
-                        ScaleTransition(
-                          scale: _pulseAnim,
-                          child: Icon(
-                            Icons.thermostat,
-                            size: 100,
-                            color: _tempColor(data!.temp),
-                          ),
+                        CircularProgressIndicator(
+                          color: Colors.orangeAccent,
+                          strokeWidth: 5,
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
                         Text(
-                          "${data!.temp.toStringAsFixed(1)} °C",
+                          "REGULANDO TEMPERATURA",
                           style: TextStyle(
-                            fontSize: 60,
-                            fontWeight: FontWeight.bold,
-                            color: _tempColor(data!.temp),
-                            letterSpacing: 2,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _tempStatus(data!.temp),
-                          style: TextStyle(
-                            color: _tempColor(data!.temp),
-                            fontSize: 20,
+                            color: Colors.orangeAccent,
+                            fontSize: 22,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          "Sensor Biométrico – Zona Cervical",
-                          style: TextStyle(color: Colors.white38, fontSize: 12),
+                        SizedBox(height: 8),
+                        Text(
+                          "Contacto directo con piel pectoral - Esperando estabilización (1-3 min)",
+                          style: TextStyle(color: Colors.white54, fontSize: 14),
+                          textAlign: TextAlign.center,
                         ),
                       ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  // ===== HISTORIAL =====
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      "HISTORIAL TÉRMICO (últimos 5)",
+                    )
+                  else
+                    Text(
+                      "${currentTemp.toStringAsFixed(1)} °C",
                       style: TextStyle(
-                        color: Colors.redAccent,
+                        fontSize: 60,
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        letterSpacing: 1.2,
+                        color: _tempColor(currentTemp),
+                        letterSpacing: 2,
                       ),
+                    ),
+
+                  const SizedBox(height: 8),
+
+                  Text(
+                    _isRegulating ? "EN PROCESO" : _tempStatus(currentTemp),
+                    style: TextStyle(
+                      color: _tempColor(currentTemp),
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
 
-                  const SizedBox(height: 12),
-
-                  // ===== MINI GRÁFICA CON NÚMEROS =====
-                  SizedBox(
-                    height: 140,
-                    child: LineChart(
-                      LineChartData(
-                        gridData: FlGridData(
-                          show: true,
-                          drawVerticalLine: true,
-                          verticalInterval: 5,
-                          horizontalInterval: 1,
-                          getDrawingHorizontalLine: (value) =>
-                              FlLine(color: Colors.white10, strokeWidth: 1),
-                          getDrawingVerticalLine: (value) =>
-                              FlLine(color: Colors.white10, strokeWidth: 1),
-                        ),
-                        titlesData: FlTitlesData(
-                          show: true,
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 30,
-                              getTitlesWidget: (value, meta) => Text(
-                                '${(5 - value.toInt())}',
-                                style: const TextStyle(
-                                  color: Colors.white54,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ),
-                          ),
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 40,
-                              getTitlesWidget: (value, meta) => Text(
-                                '${value.toInt()}°C',
-                                style: const TextStyle(
-                                  color: Colors.white54,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ),
-                          ),
-                          topTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          rightTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                        ),
-                        borderData: FlBorderData(
-                          show: true,
-                          border: Border.all(color: Colors.white12),
-                        ),
-                        minX: 0,
-                        maxX: 4,
-                        minY: 25,
-                        maxY: 45,
-                        lineBarsData: [
-                          LineChartBarData(
-                            spots: List.generate(
-                              lastTemps.length,
-                              (i) => FlSpot(
-                                (lastTemps.length - 1 - i).toDouble(),
-                                lastTemps[i],
-                              ),
-                            ),
-                            isCurved: true,
-                            curveSmoothness: 0.4,
-                            color: Colors.redAccent,
-                            barWidth: 3,
-                            dotData: FlDotData(
-                              show: true,
-                              getDotPainter: (spot, percent, barData, index) =>
-                                  FlDotCirclePainter(
-                                    radius: 5,
-                                    color: Colors.redAccent,
-                                    strokeColor: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                            ),
-                            belowBarData: BarAreaData(
-                              show: true,
-                              color: Colors.redAccent.withOpacity(0.25),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    "Sensor LM35 – Contacto directo con piel pectoral",
+                    style: TextStyle(color: Colors.white38, fontSize: 12),
                   ),
                 ],
               ),
             ),
+
+            const SizedBox(height: 30),
+
+            // HISTORIAL (solo cuando ya normalizó)
+            if (!_isRegulating) ...[
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "HISTORIAL TÉRMICO (últimos 5)",
+                  style: TextStyle(
+                    color: Colors.redAccent,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // MINI GRÁFICA
+              SizedBox(
+                height: 140,
+                child: LineChart(
+                  LineChartData(
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: true,
+                      verticalInterval: 5,
+                      horizontalInterval: 1,
+                      getDrawingHorizontalLine: (value) =>
+                          FlLine(color: Colors.white10, strokeWidth: 1),
+                      getDrawingVerticalLine: (value) =>
+                          FlLine(color: Colors.white10, strokeWidth: 1),
+                    ),
+                    titlesData: FlTitlesData(
+                      show: true,
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 30,
+                          getTitlesWidget: (value, meta) => Text(
+                            '${(5 - value.toInt())}',
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                      ),
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 40,
+                          getTitlesWidget: (value, meta) => Text(
+                            '${value.toInt()}°C',
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                      ),
+                      topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                    ),
+                    borderData: FlBorderData(
+                      show: true,
+                      border: Border.all(color: Colors.white12),
+                    ),
+                    minX: 0,
+                    maxX: 4,
+                    minY: 28,
+                    maxY: 40,
+                    lineBarsData: [
+                      LineChartBarData(
+                        spots: List.generate(
+                          lastTemps.length,
+                          (i) => FlSpot(
+                            (lastTemps.length - 1 - i).toDouble(),
+                            lastTemps[i],
+                          ),
+                        ),
+                        isCurved: true,
+                        curveSmoothness: 0.4,
+                        color: Colors.redAccent,
+                        barWidth: 3,
+                        dotData: FlDotData(
+                          show: true,
+                          getDotPainter: (spot, percent, barData, index) =>
+                              FlDotCirclePainter(
+                                radius: 5,
+                                color: Colors.redAccent,
+                                strokeColor: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                        ),
+                        belowBarData: BarAreaData(
+                          show: true,
+                          color: Colors.redAccent.withOpacity(0.25),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
-  // ================= UTILIDADES (sin cambios) =================
+  // ================= UTILIDADES =================
   Color _tempColor(double t) {
-    if (t < 28) return Colors.blueAccent;
-    if (t < 36) return Colors.greenAccent;
-    if (t < 38) return Colors.orangeAccent;
-    return Colors.redAccent;
+    if (t < 30.0) return Colors.blueAccent; // Hipotermia
+    if (t < 31.0) return Colors.cyanAccent; // Baja
+    if (t <= 33.5)
+      return Colors.greenAccent; // Normal (pecho, tu rango estable)
+    if (t <= 35.0) return Colors.orangeAccent; // Ligeramente elevada
+    return Colors.redAccent; // Fiebre / riesgo
   }
 
   String _tempStatus(double t) {
-    if (t < 28) return "HIPOTERMIA";
-    if (t < 36) return "ESTABLE";
-    if (t < 38) return "SOBRECARGA TÉRMICA";
-    return "RIESGO CRÍTICO";
+    if (t < 30.0) return "HIPOTERMIA - PELIGRO";
+    if (t < 31.0) return "BAJA";
+    if (t <= 33.5) return "NORMAL (PECHO)";
+    if (t <= 35.0) return "ELEVADA";
+    return "FIEBRE / RIESGO CRÍTICO";
   }
 }

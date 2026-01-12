@@ -7,6 +7,40 @@ import 'motion_screen.dart';
 import 'pulse_screen.dart';
 import 'signal_screen.dart';
 
+String _getSignalText(int level) {
+  switch (level) {
+    case 5:
+      return "MUY CERCA";
+    case 4:
+      return "CERCA";
+    case 3:
+      return "MEDIA";
+    case 2:
+      return "LEJOS";
+    case 1:
+      return "MUY LEJOS";
+    default:
+      return "SIN SEÑAL";
+  }
+}
+
+Color _getSignalColor(int level) {
+  switch (level) {
+    case 5:
+      return Colors.greenAccent;
+    case 4:
+      return Colors.green;
+    case 3:
+      return Colors.orangeAccent;
+    case 2:
+      return Colors.orange;
+    case 1:
+      return Colors.redAccent;
+    default:
+      return Colors.grey;
+  }
+}
+
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -150,8 +184,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                         icon: Icons.wifi_tethering,
                         title: "Enlace LoRa",
                         value:
-                            "RSSI: ${data!.rssi} dBm\nDistancia: ${data!.distance.toStringAsFixed(1)} m",
-                        color: Colors.greenAccent,
+                            _getSignalText(data!.signalLevel) +
+                            "\nRSSI: ${data!.rssi} dBm",
+                        color: _getSignalColor(data!.signalLevel),
                         onTap: () {
                           Navigator.push(
                             context,

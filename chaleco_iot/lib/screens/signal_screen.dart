@@ -25,9 +25,7 @@ class _SignalScreenState extends State<SignalScreen>
 
     _radarController = AnimationController(
       vsync: this,
-      duration: const Duration(
-        seconds: 4,
-      ), // Un poco más lento para efecto táctico
+      duration: const Duration(seconds: 4),
     )..repeat();
 
     _fetchData();
@@ -51,7 +49,7 @@ class _SignalScreenState extends State<SignalScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121212), // Fondo oscuro militar
+      backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
         title: const Text('ENLACE LoRa'),
         backgroundColor: const Color(0xFF1E1E1E),
@@ -77,14 +75,16 @@ class _SignalScreenState extends State<SignalScreen>
                 children: [
                   const SizedBox(height: 20),
 
-                  // ===== RADAR TÁCTICO =====
+                  // RADAR TÁCTICO (cambia color según nivel de señal)
                   Container(
                     height: 280,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: Colors.greenAccent.withOpacity(0.4),
-                        width: 2,
+                        color: _getSignalColor(
+                          data!.signalLevel,
+                        ).withOpacity(0.6),
+                        width: 3,
                       ),
                     ),
                     child: AnimatedBuilder(
@@ -93,7 +93,7 @@ class _SignalScreenState extends State<SignalScreen>
                         return CustomPaint(
                           painter: _RadarPainter(
                             angle: _radarController.value * 2 * pi,
-                            distance: data!.distance,
+                            signalLevel: data!.signalLevel,
                             rssi: data!.rssi,
                           ),
                           child: Container(),
@@ -104,24 +104,26 @@ class _SignalScreenState extends State<SignalScreen>
 
                   const SizedBox(height: 30),
 
-                  // ===== ESTADO DE SEÑAL EN CÁPSULA =====
+                  // CÁPSULA DE ESTADO (cambia color y texto según nivel)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       vertical: 16,
                       horizontal: 32,
                     ),
                     decoration: BoxDecoration(
-                      color: _signalColor(data!.rssi).withOpacity(0.2),
+                      color: _getSignalColor(
+                        data!.signalLevel,
+                      ).withOpacity(0.25),
                       borderRadius: BorderRadius.circular(30),
                       border: Border.all(
-                        color: _signalColor(data!.rssi),
+                        color: _getSignalColor(data!.signalLevel),
                         width: 3,
                       ),
                     ),
                     child: Text(
-                      _signalStatus(data!.rssi),
+                      _getSignalText(data!.signalLevel),
                       style: TextStyle(
-                        color: _signalColor(data!.rssi),
+                        color: _getSignalColor(data!.signalLevel),
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 2,
@@ -131,16 +133,11 @@ class _SignalScreenState extends State<SignalScreen>
 
                   const SizedBox(height: 40),
 
-                  // ===== DATOS TÉCNICOS =====
+                  // DATOS TÉCNICOS (con color según nivel)
                   _infoRow(
                     "RSSI",
                     "${data!.rssi} dBm",
-                    _signalColor(data!.rssi),
-                  ),
-                  _infoRow(
-                    "Distancia estimada",
-                    "${data!.distance.toStringAsFixed(0)} m",
-                    Colors.greenAccent,
+                    _getSignalColor(data!.signalLevel),
                   ),
                 ],
               ),
@@ -148,7 +145,41 @@ class _SignalScreenState extends State<SignalScreen>
     );
   }
 
-  // ================= COMPONENTES =================
+  // ================= HELPERS (colores y texto según nivel 1-5) =================
+  String _getSignalText(int level) {
+    switch (level) {
+      case 5:
+        return "MUY CERCA";
+      case 4:
+        return "CERCA";
+      case 3:
+        return "MEDIA";
+      case 2:
+        return "LEJOS";
+      case 1:
+        return "MUY LEJOS";
+      default:
+        return "SIN SEÑAL";
+    }
+  }
+
+  Color _getSignalColor(int level) {
+    switch (level) {
+      case 5:
+        return Colors.greenAccent.shade400; // Verde brillante
+      case 4:
+        return Colors.green.shade600; // Verde fuerte
+      case 3:
+        return Colors.orangeAccent.shade400; // Naranja vivo
+      case 2:
+        return Colors.orange.shade700; // Naranja oscuro
+      case 1:
+        return Colors.redAccent.shade700; // Rojo intenso
+      default:
+        return Colors.grey.shade600;
+    }
+  }
+
   Widget _infoRow(String label, String value, Color color) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
@@ -175,40 +206,46 @@ class _SignalScreenState extends State<SignalScreen>
       ),
     );
   }
-
-  Color _signalColor(int rssi) {
-    if (rssi > -70) return Colors.greenAccent;
-    if (rssi > -90) return Colors.orangeAccent;
-    return Colors.redAccent;
-  }
-
-  String _signalStatus(int rssi) {
-    if (rssi > -70) return "SEÑAL FUERTE";
-    if (rssi > -90) return "SEÑAL MEDIA";
-    return "SEÑAL DÉBIL";
-  }
 }
 
-// ================= RADAR PAINTER (mejorado visualmente) =================
+// ================= RADAR PAINTER (cambia color y posición según nivel) =================
 class _RadarPainter extends CustomPainter {
   final double angle;
-  final double distance;
+  final int signalLevel;
   final int rssi;
 
   _RadarPainter({
     required this.angle,
-    required this.distance,
+    required this.signalLevel,
     required this.rssi,
   });
+
+  // Función interna de colores (para que funcione dentro de la clase)
+  Color _getRadarColor() {
+    switch (signalLevel) {
+      case 5:
+        return Colors.greenAccent.shade400;
+      case 4:
+        return Colors.green.shade600;
+      case 3:
+        return Colors.orangeAccent.shade400;
+      case 2:
+        return Colors.orange.shade700;
+      case 1:
+        return Colors.redAccent.shade700;
+      default:
+        return Colors.grey.shade600;
+    }
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final maxRadius = min(size.width, size.height) / 2 - 20;
 
-    // Círculos concéntricos (más sutiles)
+    // Círculos concéntricos (con color del nivel)
     final circlePaint = Paint()
-      ..color = Colors.greenAccent.withOpacity(0.15)
+      ..color = _getRadarColor().withOpacity(0.15)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
 
@@ -216,9 +253,9 @@ class _RadarPainter extends CustomPainter {
       canvas.drawCircle(center, maxRadius * i / 4, circlePaint);
     }
 
-    // Líneas radiales (para efecto radar táctico)
+    // Líneas radiales (con color del nivel)
     final linePaint = Paint()
-      ..color = Colors.greenAccent.withOpacity(0.1)
+      ..color = _getRadarColor().withOpacity(0.1)
       ..strokeWidth = 1;
 
     for (int i = 0; i < 12; i++) {
@@ -230,12 +267,12 @@ class _RadarPainter extends CustomPainter {
       );
     }
 
-    // Barrido del radar (más ancho y con gradiente)
+    // Barrido del radar (cambia color según nivel)
     final sweepPaint = Paint()
       ..shader = RadialGradient(
         colors: [
-          Colors.greenAccent.withOpacity(0.4),
-          Colors.greenAccent.withOpacity(0.0),
+          _getRadarColor().withOpacity(0.5),
+          _getRadarColor().withOpacity(0.0),
         ],
       ).createShader(Rect.fromCircle(center: center, radius: maxRadius))
       ..style = PaintingStyle.fill;
@@ -248,26 +285,21 @@ class _RadarPainter extends CustomPainter {
       sweepPaint,
     );
 
-    // Punto del objetivo (emisor)
+    // Punto del objetivo (posición y color según nivel)
     final dotPaint = Paint()
-      ..color = rssi > -80
-          ? Colors.greenAccent
-          : rssi > -100
-          ? Colors.orangeAccent
-          : Colors.redAccent
+      ..color = _getRadarColor()
       ..style = PaintingStyle.fill;
 
-    final dotRadius =
-        maxRadius * (distance / 12000).clamp(0.0, 1.0); // Escala hasta 12 km
+    // Distancia simbólica: nivel alto = punto cerca del centro, nivel bajo = lejos
+    final dotRadius = maxRadius * (1 - (signalLevel / 5.0)); // Inverso
+
+    final dotPosition =
+        center + Offset(dotRadius * cos(angle), dotRadius * sin(angle));
+
+    canvas.drawCircle(dotPosition, 10, dotPaint);
 
     canvas.drawCircle(
-      center + Offset(dotRadius * cos(angle), dotRadius * sin(angle)),
-      10,
-      dotPaint..style = PaintingStyle.fill,
-    );
-
-    canvas.drawCircle(
-      center + Offset(dotRadius * cos(angle), dotRadius * sin(angle)),
+      dotPosition,
       10,
       Paint()
         ..color = dotPaint.color.withOpacity(0.6)

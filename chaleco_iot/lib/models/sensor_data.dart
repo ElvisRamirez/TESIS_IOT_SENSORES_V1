@@ -6,7 +6,7 @@ class SensorData {
   final double ay; // field5 - Aceleración Y
   final double az; // field6 - Aceleración Z
   final int rssi; // field7 - RSSI LoRa
-  final double distance; // field8 - Distancia estimada
+  final int signalLevel; // field8 - Distancia estimada
 
   SensorData({
     required this.temp,
@@ -16,7 +16,7 @@ class SensorData {
     required this.ay,
     required this.az,
     required this.rssi,
-    required this.distance,
+    required this.signalLevel,
   });
 
   /// Útil si luego lees JSON directamente
@@ -29,7 +29,7 @@ class SensorData {
       ay: double.tryParse(json['field5'] ?? '0') ?? 0,
       az: double.tryParse(json['field6'] ?? '0') ?? 0,
       rssi: int.tryParse(json['field7'] ?? '-120') ?? -120,
-      distance: double.tryParse(json['field8'] ?? '0') ?? 0,
+      signalLevel: int.tryParse(json['field8'] ?? '0') ?? 0,
     );
   }
 }
