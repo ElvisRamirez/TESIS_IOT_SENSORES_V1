@@ -7,6 +7,7 @@ import 'motion_screen.dart';
 import 'pulse_screen.dart';
 import 'signal_screen.dart';
 
+// Helpers para señal LoRa
 String _getSignalText(int level) {
   switch (level) {
     case 5:
@@ -71,14 +72,20 @@ class _DashboardScreenState extends State<DashboardScreen>
     _fade = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
     _controller.forward();
 
-    fetchData();
-    timer = Timer.periodic(const Duration(seconds: 15), (_) => fetchData());
+    _fetchData();
+    timer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _fetchData(),
+    ); // Rápido: 5 segundos
   }
 
-  Future<void> fetchData() async {
+  Future<void> _fetchData() async {
     try {
       final result = await ApiService.fetchLatestData();
-      setState(() => data = result);
+
+      setState(() {
+        data = result;
+      });
     } catch (e) {
       debugPrint("Dashboard error: $e");
     }
@@ -127,10 +134,14 @@ class _DashboardScreenState extends State<DashboardScreen>
 
                       // ===== TEMPERATURA =====
                       _card(
-                        icon: Icons.monitor_heart,
+                        icon: Icons.thermostat,
                         title: "Temperatura Corporal",
-                        value: "${data!.temp.toStringAsFixed(1)} °C",
-                        color: Colors.redAccent,
+                        value: data!.temp < 31.0
+                            ? "REGULANDO TEMPERATURA..."
+                            : "${data!.temp.toStringAsFixed(1)} °C",
+                        color: data!.temp < 31.0
+                            ? Colors.orangeAccent
+                            : Colors.redAccent,
                         onTap: () {
                           Navigator.push(
                             context,
@@ -147,12 +158,19 @@ class _DashboardScreenState extends State<DashboardScreen>
                       _card(
                         icon: Icons.favorite,
                         title: "Pulso Cardíaco",
-                        value: "${_convertToBPM(data!.pulse).toString()} BPM",
-                        color: Colors.pinkAccent,
+                        value: data!.pulse < 2000
+                            ? "REGULANDO PULSO..."
+                            : "${_convertToBPM(data!.pulse)} BPM",
+                        color: data!.pulse < 2000
+                            ? Colors.orangeAccent
+                            : Colors.pinkAccent,
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => PulseScreen()),
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  PulseScreen(data: data!), // ← Pasa data aquí
+                            ),
                           );
                         },
                       ),
@@ -166,7 +184,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                         value: _detectMovement(data!.mag)
                             ? "UNIDAD EN MOVIMIENTO"
                             : "UNIDAD ESTÁTICA",
-                        color: Colors.orangeAccent,
+                        color: _detectMovement(data!.mag)
+                            ? Colors.orangeAccent.shade700
+                            : Colors.green.shade700,
                         onTap: () {
                           Navigator.push(
                             context,
@@ -256,6 +276,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),

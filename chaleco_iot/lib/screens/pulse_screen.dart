@@ -5,7 +5,9 @@ import '../services/api_service.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 
 class PulseScreen extends StatefulWidget {
-  const PulseScreen({super.key});
+  final SensorData data; // ← Recibe data del Dashboard
+
+  const PulseScreen({super.key, required this.data});
 
   @override
   State<PulseScreen> createState() => _PulseScreenState();
@@ -17,14 +19,27 @@ class _PulseScreenState extends State<PulseScreen> {
 
   final List<int> lastPulse = [];
 
-  bool _isRegulating = true; // Al inicio: regulación
-  int _stablePulse = 0; // Pulso estabilizado (referencia)
+  bool _isRegulating = true; // Inicialmente true
+  int _stablePulse = 0;
 
   @override
   void initState() {
     super.initState();
-    _fetchData();
 
+    // Chequeo INMEDIATO con el dato inicial recibido (widget.data)
+    final initialPulse = widget.data.pulse ?? 0;
+    if (initialPulse >= 2000) {
+      _isRegulating = false;
+      _stablePulse = initialPulse;
+    }
+
+    // Cargar datos iniciales
+    data = widget.data;
+    if (data!.pulse > 0 && !_isRegulating) {
+      lastPulse.add(data!.pulse.round());
+    }
+
+    _fetchData();
     timer = Timer.periodic(const Duration(seconds: 15), (_) => _fetchData());
   }
 
@@ -34,21 +49,22 @@ class _PulseScreenState extends State<PulseScreen> {
 
       final pulse = result.pulse ?? 0;
 
-      // Estabilización: si pulso raw ≥ 2000 (tu nuevo umbral)
-      if (_isRegulating && pulse >= 2000) {
+      // Actualizar regulación según valor actual recibido
+      if (pulse >= 2000) {
         _isRegulating = false;
-        _stablePulse = pulse; // Guardamos como referencia normal
+        _stablePulse = pulse;
+      } else {
+        _isRegulating = true;
       }
 
-      // Alerta SOLO después de estabilizar (cambio brusco)
+      // Alertas SOLO después de estabilizar
       if (!_isRegulating) {
         if (pulse > 3000 || pulse < 1500) {
-          // Umbrales de alerta (ajusta si necesitas)
           _sendNotification(pulse);
         }
       }
 
-      if (pulse > 0) {
+      if (pulse > 0 && !_isRegulating) {
         lastPulse.insert(0, pulse.round());
         if (lastPulse.length > 5) lastPulse.removeLast();
       }
@@ -83,8 +99,15 @@ class _PulseScreenState extends State<PulseScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Si no hay data (carga inicial), muestra indicador
+    if (data == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator(color: Colors.redAccent)),
+      );
+    }
+
     return Scaffold(
-      backgroundColor: const Color(0xFF121212), // Fondo oscuro militar
+      backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
         title: const Text('MONITOREO CARDÍACO'),
         backgroundColor: const Color(0xFF1E1E1E),
@@ -101,7 +124,7 @@ class _PulseScreenState extends State<PulseScreen> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // ICONO CORAZÓN TÁCTICO + regulación
+            // ICONO CORAZÓN + regulación
             if (_isRegulating)
               const Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -133,24 +156,20 @@ class _PulseScreenState extends State<PulseScreen> {
                 padding: const EdgeInsets.all(30),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: _pulseColor(data!.pulse!).withOpacity(0.2),
-                  border: Border.all(
-                    color: _pulseColor(data!.pulse!),
-                    width: 3,
-                  ),
+                  color: _pulseColor(data!.pulse).withOpacity(0.2),
+                  border: Border.all(color: _pulseColor(data!.pulse), width: 3),
                 ),
                 child: Icon(
                   Icons.favorite,
                   size: 100,
-                  color: _pulseColor(data!.pulse!),
+                  color: _pulseColor(data!.pulse),
                 ),
               ),
 
               const SizedBox(height: 20),
 
-              // BPM GRANDE Y PROFESIONAL
               Text(
-                "${_convertToBPM(data!.pulse!)}",
+                "${_convertToBPM(data!.pulse)}",
                 style: const TextStyle(
                   fontSize: 72,
                   fontWeight: FontWeight.bold,
@@ -170,24 +189,20 @@ class _PulseScreenState extends State<PulseScreen> {
 
               const SizedBox(height: 12),
 
-              // ESTADO CARDÍACO
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: _pulseColor(data!.pulse!).withOpacity(0.2),
+                  color: _pulseColor(data!.pulse).withOpacity(0.2),
                   borderRadius: BorderRadius.circular(30),
-                  border: Border.all(
-                    color: _pulseColor(data!.pulse!),
-                    width: 2,
-                  ),
+                  border: Border.all(color: _pulseColor(data!.pulse), width: 2),
                 ),
                 child: Text(
-                  _pulseStatus(data!.pulse!),
+                  _pulseStatus(data!.pulse),
                   style: TextStyle(
-                    color: _pulseColor(data!.pulse!),
+                    color: _pulseColor(data!.pulse),
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -196,7 +211,6 @@ class _PulseScreenState extends State<PulseScreen> {
 
               const SizedBox(height: 40),
 
-              // TÍTULO ÚLTIMAS LECTURAS
               const Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -212,7 +226,6 @@ class _PulseScreenState extends State<PulseScreen> {
 
               const Divider(color: Colors.white24, thickness: 1, height: 20),
 
-              // LISTA DE ÚLTIMAS LECTURAS
               Expanded(
                 child: ListView.builder(
                   itemCount: lastPulse.length,
@@ -273,7 +286,6 @@ class _PulseScreenState extends State<PulseScreen> {
   }
 
   int _convertToBPM(int raw) {
-    // Fórmula ajustada para sensor en pecho (calibra según tu sensor real)
     return (raw / 32).toInt();
   }
 }
