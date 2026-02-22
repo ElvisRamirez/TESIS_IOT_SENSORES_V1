@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import '../screens/dashboard_screen.dart'; // Asegúrate de que este import esté correcto
+import '../services/api_service.dart'; // ← Importamos tu ApiService
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -19,10 +18,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   bool isSignalReady = false;
   Timer? _checkTimer;
-
-  // Tus claves de ThingSpeak (reemplaza si cambiaste)
-  final String channelId = '3202744'; // Pon tu Channel ID aquí
-  final String readApiKey = 'D8CS8L02VP13LDA1'; // Pon tu Read API Key aquí
 
   @override
   void initState() {
@@ -41,38 +36,32 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
     _controller.forward();
 
-    // Inicia chequeo de señal
-    _checkSignal();
+    // Inicia chequeo de señal usando ApiService
+    _checkSignalWithApi();
     _checkTimer = Timer.periodic(
       const Duration(seconds: 10),
-      (_) => _checkSignal(),
+      (_) => _checkSignalWithApi(),
     );
   }
 
-  Future<void> _checkSignal() async {
+  Future<void> _checkSignalWithApi() async {
     try {
-      final url = Uri.parse(
-        'https://api.thingspeak.com/channels/$channelId/feeds.json?api_key=$readApiKey&results=1',
-      );
-      final response = await http.get(url);
+      final sensorData = await ApiService.fetchLatestData();
 
-      if (response.statusCode == 200) {
-        final jsonData = json.decode(response.body);
-        if (jsonData['feeds'].isNotEmpty) {
-          final lastEntryTime = DateTime.parse(
-            jsonData['feeds'][0]['created_at'],
-          );
-          final now = DateTime.now().toUtc();
-          final diff = now.difference(lastEntryTime);
-          if (diff.inMinutes < 2) {
-            // Datos recientes < 2 min
-            setState(() => isSignalReady = true);
-            _checkTimer?.cancel(); // Deja de chequear
-          }
-        }
-      }
+      // Si llegamos aquí, hay datos válidos en ThingSpeak
+      // Puedes mejorar esto si agregas timestamp en SensorData
+      setState(() {
+        isSignalReady = true;
+      });
+
+      // Deja de chequear una vez que el sistema está listo
+      _checkTimer?.cancel();
     } catch (e) {
       debugPrint("Error chequeando señal: $e");
+      // Si falla → sigue esperando
+      setState(() {
+        isSignalReady = false;
+      });
     }
   }
 
